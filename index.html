@@ -171,7 +171,7 @@
 
     /* ---------- pricing ---------- */
     .pricing { border-top: 1px solid var(--border); }
-    .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 44px; }
+    .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; margin-top: 44px; }
     .plan {
         position: relative;
         background: var(--panel);
@@ -384,7 +384,7 @@
             <h2>Planos e valores</h2>
             <p>Escolha o plano ideal para você.</p>
         </div>
-        <div class="plans">
+        <div class="plans" id="plansGrid">
             <div class="plan">
                 <div class="p-name">Mensal</div>
                 <div class="p-price">R$ 19,90<small>/mês</small></div>
@@ -423,7 +423,7 @@
                 <a class="btn ghost" href="#contato">Quero assinar</a>
             </div>
         </div>
-        <p class="pricing-note">Valores sujeitos a alteração. Entre em contato para condições especiais.</p>
+        <p class="pricing-note" id="plansNote">Valores sujeitos a alteração. Entre em contato para condições especiais.</p>
     </div>
 </section>
 
@@ -693,6 +693,47 @@
             render(btn.getAttribute('data-os'));
         });
 
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function renderPricing(pricing) {
+            var section = document.getElementById('planos');
+            var grid = document.getElementById('plansGrid');
+            var noteEl = document.getElementById('plansNote');
+            if (!section || !grid) return;
+            if (!pricing || typeof pricing !== 'object') return;
+            if (pricing.enabled === false) { section.style.display = 'none'; return; }
+            section.style.display = '';
+            if (noteEl && typeof pricing.note === 'string' && pricing.note.trim()) {
+                noteEl.textContent = pricing.note.trim();
+            }
+            var plans = Array.isArray(pricing.plans) ? pricing.plans.filter(function (p) {
+                return p && p.visible !== false && (p.name || p.price);
+            }) : [];
+            if (!plans.length) return;
+            var html = '';
+            plans.forEach(function (p) {
+                var featured = !!p.featured;
+                var feats = String(p.features || '').split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+                html += '<div class="plan' + (featured ? ' featured' : '') + '">';
+                if (featured) html += '<span class="ribbon">' + esc(p.ribbon || 'MAIS ESCOLHIDO') + '</span>';
+                html += '<div class="p-name">' + esc(p.name) + '</div>';
+                html += '<div class="p-price">' + esc(p.price) + (p.period ? '<small>' + esc(p.period) + '</small>' : '') + '</div>';
+                if (p.desc) html += '<div class="p-desc">' + esc(p.desc) + '</div>';
+                if (feats.length) {
+                    html += '<ul>';
+                    feats.forEach(function (f) { html += '<li>' + esc(f) + '</li>'; });
+                    html += '</ul>';
+                }
+                html += '<a class="btn' + (featured ? '' : ' ghost') + '" href="#contato">' + esc(p.cta || 'Quero assinar') + '</a>';
+                html += '</div>';
+            });
+            grid.innerHTML = html;
+        }
+
         function applyConfig(cfg) {
             cfg = cfg || {};
             if (cfg.apkUrl) CFG.apkUrl = cfg.apkUrl;
@@ -700,6 +741,7 @@
             if (cfg.webosUrl) CFG.webosUrl = cfg.webosUrl;
             if (cfg.iosUrl) CFG.iosUrl = cfg.iosUrl;
             if (cfg.webAppUrl) CFG.webApp = cfg.webAppUrl;
+            renderPricing(cfg.pricing);
         }
 
         var detected = detectOS();
